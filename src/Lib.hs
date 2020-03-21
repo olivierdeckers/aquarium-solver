@@ -5,7 +5,6 @@
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE KindSignatures #-}
 
 module Lib where
 
@@ -15,6 +14,7 @@ import           Data.Holmes
 import           Data.List       (foldl1', nub, sort, transpose)
 import           Data.Propagator
 import qualified Data.JoinSemilattice.Intersect as I
+import qualified Data.JoinSemilattice.Defined as D
 import           Debug.Trace
 import           GHC.Generics    (Generic)
 import Data.Kind (Type)
@@ -71,31 +71,32 @@ example = Puzzle {
 
 type Pos = (Int, Int)
 
-config :: Puzzle -> Config Holmes (Intersect AquariumCell)
+config :: Puzzle -> Config Holmes (Defined AquariumCell)
 config p = gridSize `from` [Air, Water]
   where
     gridSize = size p * size p
 
-constraints :: forall m. MonadCell m => Puzzle -> [Prop m (Intersect AquariumCell)] -> Prop m (Intersect Bool)
+constraints :: forall m. MonadCell m => Puzzle -> [Prop m (Defined AquariumCell)] -> Prop m (Defined Bool)
 constraints p board =
-  let rs :: [[Prop m (Intersect AquariumCell)]]
+  let rs :: [[Prop m (Defined AquariumCell)]]
       rs = rows p board
       cs = cols p board
       gs = groups p board
-      sumsandrows :: [(Prop m (Intersect WaterCount), [Prop m (Intersect AquariumCell)])]
-      sumsandrows = zip (map (lift . I.singleton) $ ((map fromIntegral $ rowSums p) :: [WaterCount])) rs
+      sumsandrows :: [(Prop m (Defined Int), [Prop m (Defined AquariumCell)])]
+      sumsandrows = zip (map (lift . fromIntegral) (rowSums p)) rs
+      sumsandcols = zip (map (lift . fromIntegral) (colSums p)) cs
    in and' [
---      and' $ map (\r -> foldl1' (.+) (map (over countWater) r) .>= 0) rs,
-      and' $ [(over countWater c) .>= 0 | r <- rs, c <- r],
-      and' $ map (\(sum, r) -> foldl1' (.+) (map (over countWater) r) .== sum) sumsandrows
-
+      and' $ map (\(sum, r) -> foldl1' (.+) (map countWater r) .== sum) sumsandrows,
+      and' $ map (\(sum, c) -> foldl1' (.+) (map countWater c) .== sum) sumsandcols
     ]
 
-aquarium :: Puzzle -> IO (Maybe [Intersect AquariumCell])
+aquarium :: Puzzle -> IO (Maybe [Defined AquariumCell])
 aquarium p = config p `satisfying` constraints p
 
-countWater :: Intersect AquariumCell -> Intersect WaterCount
-countWater = I.map f
+-- For some reason, if I use this implementation, I get no results back, whild .$ works fine
+--countWater ac = (over (fmap f)) ac
+countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
+countWater ac = f .$ ac
   where
     f Water = 1
     f Air = 0
