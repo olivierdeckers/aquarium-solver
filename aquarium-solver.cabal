@@ -4,16 +4,16 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c5de62ca461eb14d5d0caa69dd4cc6b2f948aab9a47127a0bf36c12884175638
+-- hash: 1960b4f6e1933b59976af8c2220165f33c621523c5fd94bbfcc03bb8ae12b808
 
 name:           aquarium-solver
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/aquarium-solver#readme>
 homepage:       https://github.com/githubuser/aquarium-solver#readme
 bug-reports:    https://github.com/githubuser/aquarium-solver/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2020 Author name here
+author:         Olivier Deckers
+maintainer:     deckers.olivier@gmail.com
+copyright:      2020 Olivier Deckers
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple

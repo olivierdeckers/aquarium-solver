@@ -26,9 +26,18 @@ data AquariumCell = Air | Water
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass (Hashable)
 
-instance Num AquariumCell where
-  fromInteger 0 = Water
-  fromInteger 1 = Air
+data WaterCount = V0 | V1 | V2 | V3 | V4 | V5 | V6
+  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
+  deriving anyclass (Hashable)
+
+instance Num WaterCount where
+  fromInteger a = traceCtx ("fromInteger " <> show a) $ toEnum . fromInteger $ a
+  a + b       = toEnum $ fromEnum a + fromEnum b
+  a - b       = traceCtx (show a ++ " - " ++ show b) $ toEnum $ fromEnum a - fromEnum b
+  negate a    = error "no negate defined"
+  a * b       = error "no times defined"
+  abs a       = a
+  signum a    = error "no signum defined"
 
 data Puzzle = Puzzle {
     size       :: Int,
@@ -73,14 +82,19 @@ constraints p board =
       rs = rows p board
       cs = cols p board
       gs = groups p board
-      sumsandrows :: [(Prop m (Intersect Int), [Prop m (Intersect AquariumCell)])]
-      sumsandrows = zip (map (lift . I.singleton) $ rowSums p) rs
-   in and' [and' $ map (\(sum, r) -> foldr1 (.+) (map (over countWater) r) .== sum) sumsandrows]
+      sumsandrows :: [(Prop m (Intersect WaterCount), [Prop m (Intersect AquariumCell)])]
+      sumsandrows = zip (map (lift . I.singleton) $ ((map fromIntegral $ rowSums p) :: [WaterCount])) rs
+   in and' [
+--      and' $ map (\r -> foldl1' (.+) (map (over countWater) r) .>= 0) rs,
+      and' $ [(over countWater c) .>= 0 | r <- rs, c <- r],
+      and' $ map (\(sum, r) -> foldl1' (.+) (map (over countWater) r) .== sum) sumsandrows
+
+    ]
 
 aquarium :: Puzzle -> IO (Maybe [Intersect AquariumCell])
 aquarium p = config p `satisfying` constraints p
 
-countWater :: Intersect AquariumCell -> Intersect Int
+countWater :: Intersect AquariumCell -> Intersect WaterCount
 countWater = I.map f
   where
     f Water = 1
@@ -94,7 +108,7 @@ rows p xs = take s xs : rows p (drop s xs)
 cols :: Puzzle -> [x] -> [[x]]
 cols p xs = transpose $ rows p xs
 
-traceCtx s a = a -- trace (s ++ " " ++ show a) a
+traceCtx s a = trace (s ++ " " ++ show a) a
 
 groups :: Puzzle -> [x] -> [[x]]
 groups p xs =
