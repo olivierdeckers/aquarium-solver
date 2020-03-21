@@ -81,14 +81,22 @@ constraints p board =
   let rs :: [[Prop m (Defined AquariumCell)]]
       rs = rows p board
       cs = cols p board
-      gs = groups p board
+      gs :: [[(Prop m (Defined AquariumCell), Int)]]
+      gs = groupsWithDepth p board
       sumsandrows :: [(Prop m (Defined Int), [Prop m (Defined AquariumCell)])]
       sumsandrows = zip (map (lift . fromIntegral) (rowSums p)) rs
       sumsandcols = zip (map (lift . fromIntegral) (colSums p)) cs
    in and' [
       and' $ map (\(sum, r) -> foldl1' (.+) (map countWater r) .== sum) sumsandrows,
       and' $ map (\(sum, c) -> foldl1' (.+) (map countWater c) .== sum) sumsandcols
+--      and' $ map (\g -> all' (\(cs, depth) -> isAirBubble (calculateMinDepth g) (cs, depth)) g) gs
     ]
+
+calculateMinDepth :: forall m . [(Prop m (Defined AquariumCell), Int)] -> Prop m Int
+calculateMinDepth = undefined
+
+isAirBubble :: forall m . Prop m Int -> (Prop m (Defined AquariumCell), Int) -> Prop m (Defined Bool)
+isAirBubble minDepth (ac, d) = undefined
 
 aquarium :: Puzzle -> IO (Maybe [Defined AquariumCell])
 aquarium p = config p `satisfying` constraints p
@@ -111,15 +119,15 @@ cols p xs = transpose $ rows p xs
 
 traceCtx s a = trace (s ++ " " ++ show a) a
 
-groups :: Puzzle -> [x] -> [[x]]
-groups p xs =
+groupsWithDepth :: Puzzle -> [x] -> [[(x, Int)]]
+groupsWithDepth p xs =
   let s = size p
       groupPositions = calculateGroupPositions p
   in do
     ps <- groupPositions
     return $ do
       (x,y) <- ps
-      return xs !! (y * s + x)
+      return (xs !! (y * s + x), y)
 
 calculatePositions :: Puzzle -> [Pos]
 calculatePositions Puzzle {size=s} = do
@@ -165,3 +173,14 @@ neighbours p (x,y) = filter inrange [(x-1, y), (x+1, y), (x, y-1), (x, y+1)]
   where inrange (x,y) = x >= 0 && y >= 0 && x < s && y < s
         s = size p
 
+solution :: [Defined AquariumCell]
+solution = [
+    w, w, a, a, a, a,
+    a, w, w, w, a, a,
+    a, w, a, w, w, w,
+    a, a, w, w, w, w,
+    a, w, w, w, w, w,
+    a, w, w, w, w, w
+  ]
+    where a = Exactly Air
+          w = Exactly Water
