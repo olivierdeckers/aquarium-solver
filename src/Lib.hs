@@ -1,43 +1,26 @@
-
-{-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE BlockArguments     #-}
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE BlockArguments      #-}
+{-# LANGUAGE DeriveAnyClass      #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DerivingStrategies  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Lib where
 
-import           Control.Monad   (guard)
-import           Data.Hashable   (Hashable)
+import           Control.Monad                  (guard)
+import           Data.Hashable                  (Hashable)
 import           Data.Holmes
-import           Data.List       (foldl1', nub, sort, transpose)
-import           Data.Propagator
+import qualified Data.JoinSemilattice.Defined   as D
 import qualified Data.JoinSemilattice.Intersect as I
-import qualified Data.JoinSemilattice.Defined as D
+import           Data.Kind                      (Type)
+import           Data.List                      (foldl1', nub, sort, transpose)
+import           Data.List.Split                (chunksOf)
+import           Data.Propagator
 import           Debug.Trace
-import           GHC.Generics    (Generic)
-import Data.Kind (Type)
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+import           GHC.Generics                   (Generic)
 
 data AquariumCell = Air | Water
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
   deriving anyclass (Hashable)
-
-data WaterCount = V0 | V1 | V2 | V3 | V4 | V5 | V6
-  deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
-  deriving anyclass (Hashable)
-
-instance Num WaterCount where
-  fromInteger a = traceCtx ("fromInteger " <> show a) $ toEnum . fromInteger $ a
-  a + b       = toEnum $ fromEnum a + fromEnum b
-  a - b       = traceCtx (show a ++ " - " ++ show b) $ toEnum $ fromEnum a - fromEnum b
-  negate a    = error "no negate defined"
-  a * b       = error "no times defined"
-  abs a       = a
-  signum a    = error "no signum defined"
 
 data Puzzle = Puzzle {
     size       :: Int,
@@ -69,8 +52,6 @@ example = Puzzle {
     ]
 }
 
-type Pos = (Int, Int)
-
 config :: Puzzle -> Config Holmes (Defined AquariumCell)
 config p = gridSize `from` [Air, Water]
   where
@@ -88,26 +69,37 @@ constraints p board =
       sumsandcols = zip (map (lift . fromIntegral) (colSums p)) cs
    in and' [
       and' $ map (\(sum, r) -> foldl1' (.+) (map countWater r) .== sum) sumsandrows,
-      and' $ map (\(sum, c) -> foldl1' (.+) (map countWater c) .== sum) sumsandcols
---      and' $ map (\g -> all' (\(cs, depth) -> isAirBubble (calculateMinDepth g) (cs, depth)) g) gs
+      and' $ map (\(sum, c) -> foldl1' (.+) (map countWater c) .== sum) sumsandcols,
+      and' $ map noAirBubbles gs
     ]
 
-calculateMinDepth :: forall m . [(Prop m (Defined AquariumCell), Int)] -> Prop m Int
-calculateMinDepth = undefined
-
-isAirBubble :: forall m . Prop m Int -> (Prop m (Defined AquariumCell), Int) -> Prop m (Defined Bool)
-isAirBubble minDepth (ac, d) = undefined
+noAirBubbles :: forall m . MonadCell m => [(Prop m (Defined AquariumCell), Int)] -> Prop m (Defined Bool)
+noAirBubbles gs =
+  let gs' :: [(Prop m (Defined AquariumCell), Prop m (Defined Int))]
+      gs' = map (\(ac, d) -> (ac, (lift . fromIntegral) d)) gs
+      zipped :: [Prop m (Defined (AquariumCell, Int))]
+      zipped = map (uncurry (zipWith' (,))) gs'
+      compatible :: (AquariumCell, Int) -> (AquariumCell, Int) -> Bool
+      compatible (Air, d1) (Water, d2) | d1 >= d2 = False
+      compatible (Water, d1) (Air, d2) | d1 <= d2 = False
+      compatible _ _                   = True
+   in flip allWithIndex' zipped $ \i g ->
+        flip allWithIndex' zipped $ \i2 g2 ->
+          or' [
+            ((lift $ fromIntegral i2) :: Prop m (Defined Int)) .<= lift (fromIntegral i)
+          , zipWith' compatible g g2
+          ]
 
 aquarium :: Puzzle -> IO (Maybe [Defined AquariumCell])
 aquarium p = config p `satisfying` constraints p
 
--- For some reason, if I use this implementation, I get no results back, whild .$ works fine
+-- For some reason, if I use this implementation, I get no solutions, while .$ works fine
 --countWater ac = (over (fmap f)) ac
 countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
 countWater ac = f .$ ac
   where
     f Water = 1
-    f Air = 0
+    f Air   = 0
 
 rows :: Puzzle -> [x] -> [[x]]
 rows _ [] = []
@@ -116,8 +108,6 @@ rows p xs = take s xs : rows p (drop s xs)
 
 cols :: Puzzle -> [x] -> [[x]]
 cols p xs = transpose $ rows p xs
-
-traceCtx s a = trace (s ++ " " ++ show a) a
 
 groupsWithDepth :: Puzzle -> [x] -> [[(x, Int)]]
 groupsWithDepth p xs =
@@ -128,6 +118,8 @@ groupsWithDepth p xs =
     return $ do
       (x,y) <- ps
       return (xs !! (y * s + x), y)
+
+type Pos = (Int, Int)
 
 calculatePositions :: Puzzle -> [Pos]
 calculatePositions Puzzle {size=s} = do
@@ -141,18 +133,16 @@ calculateGroupPositions p = nub $ map (\x -> nub . sort $ buildGroup [x]) (calcu
         buildGroup :: [Pos] -> [Pos]
         buildGroup ps =
           let newPositions = do
-                                (x, y) <- traceCtx "Positions so far" ps
-                                let !_ = traceCtx "expanding" (x,y)
-                                let colGroupNumber = traceCtx "colGroupNumber" $ colGroupNumbers p !! x !! y
-                                let rowGroupNumber = traceCtx "rowGroupNumber" $ rowGroupNumbers p !! y !! x
-                                neighbour@(nx, ny) <- traceCtx "neighbours" $ neighbours p (x,y)
-                                let !_ = traceCtx "checking neighbour" neighbour
-                                let nColGroupNumber = traceCtx "neighbour colGroupNumber" $ colGroupNumbers p !! nx !! ny
-                                let nRowGroupNumber = traceCtx "neighbour rowGroupNumber" $ rowGroupNumbers p !! ny !! nx
+                                (x, y) <- ps
+                                let colGroupNumber = colGroupNumbers p !! x !! y
+                                let rowGroupNumber = rowGroupNumbers p !! y !! x
+                                neighbour@(nx, ny) <- neighbours p (x,y)
+                                let nColGroupNumber = colGroupNumbers p !! nx !! ny
+                                let nRowGroupNumber = rowGroupNumbers p !! ny !! nx
                                 guard $ notElem neighbour ps
                                 guard $ (x == nx && nColGroupNumber == colGroupNumber) || (y == ny && nRowGroupNumber == rowGroupNumber)
-                                return $ traceCtx "selected neighbour" neighbour
-          in case traceCtx "newPositions" newPositions of
+                                return neighbour
+          in case newPositions of
             [] -> ps
             _  -> buildGroup $ ps ++ newPositions
 
@@ -184,3 +174,8 @@ solution = [
   ]
     where a = Exactly Air
           w = Exactly Water
+
+printBoard :: Puzzle -> [ Defined AquariumCell ] -> IO ()
+printBoard p cells = mapM_ putStrLn $ chunksOf (size p) $ map showCell cells
+  where showCell (Exactly Air)   = '_'
+        showCell (Exactly Water) = 'x'
