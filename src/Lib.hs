@@ -9,6 +9,7 @@ module Lib where
 import           Control.Monad                  (guard)
 import           Data.Hashable                  (Hashable)
 import           Data.Holmes
+import qualified Control.Monad.Cell.Class as Cell
 import qualified Data.JoinSemilattice.Defined   as D
 import qualified Data.JoinSemilattice.Intersect as I
 import           Data.Kind                      (Type)
@@ -86,10 +87,14 @@ noAirBubbles gs =
 countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
 -- For some reason, if I use this implementation, I get no solutions, while .$ works fine
 --countWater ac = (over (fmap f)) ac
-countWater ac = f .$ ac
+countWater ac = f .$ ac --this works, but it goes only in one direction
+--countWater = Data.Propagator.unary (mapR (Just f, Just g)) -- This results in errors because it tries to get the aquariumcell for eg. 7
   where
     f Water = 1
-    f Air   = 0
+    f Air = 0
+    g 1 = Water
+    g 0 = Air
+    g a = error $ "There is no aquarium call defined for " <> show a
 
 liftInt :: forall m . MonadCell m => Int -> Prop m (Defined Int)
 liftInt = lift . fromIntegral
