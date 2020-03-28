@@ -32,86 +32,54 @@ data Puzzle = Puzzle {
     _puzzleCols :: [[Int]]
   }
 
-solve :: Puzzle -> IO (Maybe [Defined AquariumCell])
+solve :: Puzzle -> IO (Maybe [Intersect AquariumCell])
 solve p = config p `satisfying` constraints p
 
-config :: Puzzle -> Config Holmes (Defined AquariumCell)
+config :: Puzzle -> Config Holmes (Intersect AquariumCell)
 config p = gridSize `from` [Air, Water]
   where gridSize = _size p * _size p
 
-constraints :: forall m. MonadCell m => Puzzle -> [Prop m (Defined AquariumCell)] -> Prop m (Defined Bool)
+constraints :: forall m. MonadCell m => Puzzle -> [Prop m (Intersect AquariumCell)] -> Prop m (Intersect Bool)
 constraints p board =
-  let rows, cols :: [[Prop m (Defined AquariumCell)]]
+  let rows, cols :: [[Prop m (Intersect AquariumCell)]]
       rows = calculateRows p board
       cols = calculateCols p board
 
-      groups :: [[(Prop m (Defined AquariumCell), Int)]]
+      groups :: [[(Prop m (Intersect AquariumCell), Int)]]
       groups = groupsWithDepth p board
 
---      rowSums, colSums :: [Prop m (Defined Int)]
---      rowSums = map liftInt $ _rowSums p
---      colSums = map liftInt $ _colSums p
-      w :: Prop m (Defined AquariumCell)
-      w = lift $ Exactly Water
-      
+      w :: Prop m (Intersect AquariumCell)
+      w = lift $ I.singleton Water
+
    in and' $ concat [
       zipWith (\row sum -> exactly sum (w .==) row) rows (_rowSums p),
       zipWith (\col sum -> exactly sum (w .==) col) cols (_colSums p),
       map noAirBubbles groups
     ]
 
---amountOfWaterEqualsSum
---  :: forall m . MonadCell m
---  => [Prop m (Defined AquariumCell)]
---  -> Prop m (Defined Int)
---  -> Prop m (Defined Bool)
-----amountOfWaterEqualsSum cells sum =
-----  let
---amountOfWaterEqualsSum cells sum = foldl1' (.+) (map countWater cells) .== sum
-
-exactly :: forall x m. MonadCell m => Int -> (Prop m x -> Prop m (Defined Bool)) -> [Prop m x] -> Prop m (Defined Bool)
+exactly :: forall x m. MonadCell m => Int -> (Prop m x -> Prop m (Intersect Bool)) -> [Prop m x] -> Prop m (Intersect Bool)
 exactly count pred xs =
   let l = length xs
       choices :: [[Bool]]
       choices = choose l count
-      applyChoice :: [Bool] -> [Prop m (Defined Bool)]
+      applyChoice :: [Bool] -> [Prop m (Intersect Bool)]
       applyChoice picks = zipWith (\pick prop -> if pick then pred prop .== true else pred prop .== false) picks xs
   in or' (map (and'.applyChoice) choices)
 
 noAirBubbles
   :: forall m . MonadCell m
-  => [(Prop m (Defined AquariumCell), Int)] 
-  -> Prop m (Defined Bool)
+  => [(Prop m (Intersect AquariumCell), Int)] 
+  -> Prop m (Intersect Bool)
 noAirBubbles gs =
-  let gs' :: [(Prop m (Defined AquariumCell), Prop m (Defined Int))]
-      gs' = map (\(ac, d) -> (ac, (lift . fromIntegral) d)) gs
-      zipped :: [Prop m (Defined (AquariumCell, Int))]
-      zipped = map (uncurry (zipWith' (,))) gs'
-      compatible :: (AquariumCell, Int) -> (AquariumCell, Int) -> Bool
-      compatible (Air, d1) (Water, d2) | d1 >= d2 = False
-      compatible (Water, d1) (Air, d2) | d1 <= d2 = False
-      compatible _ _                   = True
-   in flip allWithIndex' zipped $ \i g ->
-        flip allWithIndex' zipped $ \i2 g2 ->
-          or' [
-            ((lift $ fromIntegral i2) :: Prop m (Defined Int)) .<= lift (fromIntegral i)
-          , zipWith' compatible g g2
+  flip allWithIndex' gs $ \i (cell, depth) ->
+    flip allWithIndex' gs $ \i2 (cell2, depth2) ->
+      if i2 /= i && depth >= depth2
+        then or' [
+            cell2 .== lift (I.singleton Air),
+            cell .== lift (I.singleton Water)
           ]
-
---countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
----- For some reason, if I use this implementation, I get no solutions, while .$ works fine
-----countWater ac = (over (fmap f)) ac
---countWater ac = f .$ ac --this works, but it goes only in one direction
-----countWater = Data.Propagator.unary (mapR (Just f, Just g)) -- This results in errors because it tries to get the aquariumcell for eg. 7
---  where
---    f Water = 1
---    f Air = 0
---    g 1 = Water
---    g 0 = Air
---    g a = error $ "There is no aquarium call defined for " <> show a
-
---liftInt :: forall m . MonadCell m => Int -> Prop m (Defined Int)
---liftInt = lift . fromIntegral
+        else
+          (true :: Prop m (Intersect Bool))
 
 calculateRows :: Puzzle -> [x] -> [[x]]
 calculateRows _ [] = []
