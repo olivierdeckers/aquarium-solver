@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 16f9886cdae268923ae671d7e17e27beca24794f8681495516c97f42ddfad39b
+-- hash: 08acae5deca55c14c408adebf97d818edeb5cd21ad9b3e23e427ed2412684dc4
 
 name:           aquarium-solver
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , combinatorial
     , hashable
     , holmes
     , split
@@ -49,6 +50,7 @@ executable aquarium-solver-exe
   build-depends:
       aquarium-solver
     , base >=4.7 && <5
+    , combinatorial
     , hashable
     , holmes
     , split
@@ -65,6 +67,7 @@ test-suite aquarium-solver-test
   build-depends:
       aquarium-solver
     , base >=4.7 && <5
+    , combinatorial
     , hashable
     , holmes
     , hspec

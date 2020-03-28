@@ -18,6 +18,7 @@ import           Data.List.Split                (chunksOf)
 import           Data.Propagator
 import           Debug.Trace
 import           GHC.Generics                   (Generic)
+import          Combinatorics
 
 data AquariumCell = Air | Water
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
@@ -47,22 +48,35 @@ constraints p board =
       groups :: [[(Prop m (Defined AquariumCell), Int)]]
       groups = groupsWithDepth p board
 
-      rowSums, colSums :: [Prop m (Defined Int)]
-      rowSums = map liftInt $ _rowSums p
-      colSums = map liftInt $ _colSums p
-
+--      rowSums, colSums :: [Prop m (Defined Int)]
+--      rowSums = map liftInt $ _rowSums p
+--      colSums = map liftInt $ _colSums p
+      w :: Prop m (Defined AquariumCell)
+      w = lift $ Exactly Water
+      
    in and' $ concat [
-      zipWith amountOfWaterEqualsSum rows rowSums,
-      zipWith amountOfWaterEqualsSum cols colSums,
+      zipWith (\row sum -> exactly sum (w .==) row) rows (_rowSums p),
+      zipWith (\col sum -> exactly sum (w .==) col) cols (_colSums p),
       map noAirBubbles groups
     ]
 
-amountOfWaterEqualsSum
-  :: forall m . MonadCell m
-  => [Prop m (Defined AquariumCell)]
-  -> Prop m (Defined Int)
-  -> Prop m (Defined Bool)
-amountOfWaterEqualsSum cells sum = foldl1' (.+) (map countWater cells) .== sum
+--amountOfWaterEqualsSum
+--  :: forall m . MonadCell m
+--  => [Prop m (Defined AquariumCell)]
+--  -> Prop m (Defined Int)
+--  -> Prop m (Defined Bool)
+----amountOfWaterEqualsSum cells sum =
+----  let
+--amountOfWaterEqualsSum cells sum = foldl1' (.+) (map countWater cells) .== sum
+
+exactly :: forall x m. MonadCell m => Int -> (Prop m x -> Prop m (Defined Bool)) -> [Prop m x] -> Prop m (Defined Bool)
+exactly count pred xs =
+  let l = length xs
+      choices :: [[Bool]]
+      choices = choose l count
+      applyChoice :: [Bool] -> [Prop m (Defined Bool)]
+      applyChoice picks = zipWith (\pick prop -> if pick then pred prop .== true else pred prop .== false) picks xs
+  in or' (map (and'.applyChoice) choices)
 
 noAirBubbles
   :: forall m . MonadCell m
@@ -84,20 +98,20 @@ noAirBubbles gs =
           , zipWith' compatible g g2
           ]
 
-countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
--- For some reason, if I use this implementation, I get no solutions, while .$ works fine
---countWater ac = (over (fmap f)) ac
-countWater ac = f .$ ac --this works, but it goes only in one direction
---countWater = Data.Propagator.unary (mapR (Just f, Just g)) -- This results in errors because it tries to get the aquariumcell for eg. 7
-  where
-    f Water = 1
-    f Air = 0
-    g 1 = Water
-    g 0 = Air
-    g a = error $ "There is no aquarium call defined for " <> show a
+--countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
+---- For some reason, if I use this implementation, I get no solutions, while .$ works fine
+----countWater ac = (over (fmap f)) ac
+--countWater ac = f .$ ac --this works, but it goes only in one direction
+----countWater = Data.Propagator.unary (mapR (Just f, Just g)) -- This results in errors because it tries to get the aquariumcell for eg. 7
+--  where
+--    f Water = 1
+--    f Air = 0
+--    g 1 = Water
+--    g 0 = Air
+--    g a = error $ "There is no aquarium call defined for " <> show a
 
-liftInt :: forall m . MonadCell m => Int -> Prop m (Defined Int)
-liftInt = lift . fromIntegral
+--liftInt :: forall m . MonadCell m => Int -> Prop m (Defined Int)
+--liftInt = lift . fromIntegral
 
 calculateRows :: Puzzle -> [x] -> [[x]]
 calculateRows _ [] = []

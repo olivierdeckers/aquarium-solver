@@ -24,6 +24,7 @@ dependencies:
 - holmes
 - hashable
 - split
+- combinatorial
 
 library:
   source-dirs: src

@@ -29,12 +29,12 @@ main = hspec $
             ]
       sol `shouldBe` solution
 
---    it "should calculate the correct solution for a 15x15 puzzle" $ do -- This one is very slow
---      putStrLn $ show $ map (foldr1 (+)) $ _puzzleCols example3
---      putStrLn $ show $ map (foldr1 (+)) $ _puzzleRows example3
---      Just sol <- solve example3
---      let solution = []
---      sol `shouldBe` solution
+    it "should calculate the correct solution for a 15x15 puzzle" $ do -- This one is very slow
+      putStrLn $ show $ map (foldr1 (+)) $ _puzzleCols example3
+      putStrLn $ show $ map (foldr1 (+)) $ _puzzleRows example3
+      Just sol <- solve example3
+      let solution = []
+      sol `shouldBe` solution
   where
     w = Exactly Water
     a = Exactly Air
