@@ -18,6 +18,7 @@ import           Data.List.Split                (chunksOf)
 import           Data.Propagator
 import           Debug.Trace
 import           GHC.Generics                   (Generic)
+import Injection
 
 data AquariumCell = Air | Water
   deriving stock (Eq, Ord, Show, Enum, Bounded, Generic)
@@ -87,14 +88,14 @@ noAirBubbles gs =
 countWater :: forall m. Prop m (Defined AquariumCell) -> Prop m (Defined Int)
 -- For some reason, if I use this implementation, I get no solutions, while .$ works fine
 --countWater ac = (over (fmap f)) ac
-countWater ac = f .$ ac --this works, but it goes only in one direction
---countWater = Data.Propagator.unary (mapR (Just f, Just g)) -- This results in errors because it tries to get the aquariumcell for eg. 7
+--countWater ac = f .$ ac --this works, but it goes only in one direction
+countWater = Data.Propagator.unary (injectR (Just f, Just g)) -- This results in errors because it tries to get the aquariumcell for eg. 7
   where
     f Water = 1
     f Air = 0
-    g 1 = Water
-    g 0 = Air
-    g a = error $ "There is no aquarium call defined for " <> show a
+    g 1 = Just Water
+    g 0 = Just Air
+    g a = Nothing
 
 liftInt :: forall m . MonadCell m => Int -> Prop m (Defined Int)
 liftInt = lift . fromIntegral

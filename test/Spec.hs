@@ -29,12 +29,10 @@ main = hspec $
             ]
       sol `shouldBe` solution
 
---    it "should calculate the correct solution for a 15x15 puzzle" $ do -- This one is very slow
---      putStrLn $ show $ map (foldr1 (+)) $ _puzzleCols example3
---      putStrLn $ show $ map (foldr1 (+)) $ _puzzleRows example3
---      Just sol <- solve example3
---      let solution = []
---      sol `shouldBe` solution
+    it "should calculate the correct solution for a 10x10 puzzle" $ do
+      Just sol <- solve example4
+      let solution = []
+      sol `shouldBe` solution
   where
     w = Exactly Water
     a = Exactly Air
@@ -122,4 +120,34 @@ example3 = Puzzle {
       [1, 3, 3, 2, 1, 2, 3],
       [5, 2, 6, 2]
     ]
+}
+
+example4 = Puzzle {
+    _size = 10
+  , _colSums = [4, 3, 8, 9, 8, 6, 6, 8, 7, 2]
+  , _rowSums = [7, 6, 8, 8, 3, 4, 7, 5, 4, 9]
+  , _puzzleRows = [
+    [1, 5, 1, 2, 1],
+    [1, 1, 1, 2, 1, 2, 1, 1],
+    [2, 1, 2, 1, 3, 1],
+    [2, 3, 2, 2, 1],
+    [1, 1, 1, 2, 2, 2, 1],
+    [1, 1, 3, 1, 3, 1],
+    [1, 1, 1, 1, 2, 1, 2, 1],
+    [1, 1, 2, 3, 2, 1],
+    [1, 1, 1, 3, 1, 1, 1, 1],
+    [3, 2, 1, 1, 1, 1, 1]
+  ]
+  , _puzzleCols = [
+    [2, 2, 2, 3, 1]
+    , [1, 4, 4, 1]
+    , [2, 3, 1, 2, 2]
+    , [1, 2, 1, 1, 2, 1, 1, 1]
+    , [1, 2, 1, 1, 1, 1, 2, 1]
+    , [1, 2, 1, 1, 2, 3]
+    , [2, 1, 1, 1, 2, 1, 2]
+    , [1, 1, 1, 1, 2, 1, 1, 2]
+    , [1, 1, 1, 1, 2, 1, 1, 2]
+    , [4, 2, 2, 2]
+  ]
 }
