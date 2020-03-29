@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 08acae5deca55c14c408adebf97d818edeb5cd21ad9b3e23e427ed2412684dc4
+-- hash: 208f3dbdb3ae5b71595016f1c4f67813a50b3e7ce94839b4b7ac1e21906cfa32
 
 name:           aquarium-solver
 version:        0.1.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Puzzle
   other-modules:
       Paths_aquarium_solver
   hs-source-dirs:
@@ -60,6 +61,8 @@ test-suite aquarium-solver-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      LibSpec
+      PuzzleSpec
       Paths_aquarium_solver
   hs-source-dirs:
       test
@@ -69,7 +72,9 @@ test-suite aquarium-solver-test
     , base >=4.7 && <5
     , combinatorial
     , hashable
+    , hedgehog
     , holmes
     , hspec
+    , hspec-hedgehog
     , split
   default-language: Haskell2010

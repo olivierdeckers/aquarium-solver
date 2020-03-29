@@ -3,6 +3,7 @@ module Main where
 import Lib
 import Data.Holmes
 import Data.List.Split (chunksOf)
+import Puzzle
 import qualified Data.JoinSemilattice.Intersect as I
 
 main :: IO ()

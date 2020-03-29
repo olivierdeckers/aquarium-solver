@@ -11,6 +11,13 @@ packages:
       sha256: 21a44f287acb84b8fa3c68e59d73004efff9c34f2d52a35dfe6865cb08611b7b
   original:
     hackage: holmes-0.2.0.0
+- completed:
+    hackage: hspec-hedgehog-0.0.1.1@sha256:bbf992090eb2e3c1b8919150756bb4dc88c8c987992ee6f49ca9d3ec8cbddc96,1371
+    pantry-tree:
+      size: 379
+      sha256: e3c8694eea1df1ad60a71be5153e828128c50f066429127811ecb404a9309598
+  original:
+    hackage: hspec-hedgehog-0.0.1.1
 snapshots:
 - completed:
     size: 491163
