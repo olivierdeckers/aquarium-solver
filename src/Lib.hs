@@ -49,7 +49,7 @@ exactly count pred xs =
       choices :: [[Bool]]
       choices = choose l count
       applyChoice :: [Bool] -> [Prop m (Intersect Bool)]
-      applyChoice picks = zipWith (\pick prop -> if pick then pred prop .== true else pred prop .== false) picks xs --TODO might be faster if we use the complement if count > l/2
+      applyChoice picks = zipWith (\pick prop -> if pick then pred prop .== true else pred prop .== false) picks xs
   in or' (map (and'.applyChoice) choices)
 
 noAirBubbles
